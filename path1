@@ -1,39 +1,12 @@
-local Config = {
-    FootballMagnents = {
-        Enabled = false,
-        DistanceActivation = 0
-    },
-
-    FootballSizeExtender = {
-        Enabled = false,
-        SizeX = 0,
-        SizeY = 0,
-        SizeZ = 0
-    },
-
-    AutoCatch = {
-        Enabled = false,
-        ActivationDistance = 0
-    },
-
-    CharacterOptions = {
-        EnabledWalkSpeed = false,
-        EnabledJumpPower = false,
-        WalkSpeed = 20,
-        JumpPower = 50
-    }
-}
-
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Consistt/Ui/main/UnLeaked"))()
-Library.rank = "developer"
-
 local NotificationStuff = Library:InitNotifications()
 local LoadingViseHubV3 = NotificationStuff:Notify("Loading Vise Hub V3!")
 
---// Set The Title of the UI!
-Library.title = "QB Stuff | Testing"
+Library.rank = "developer"
+Library.title = "Quarterback | Beta"
 Library:Introduction()
 task.wait()
+
 local Initialization = Library:Init()
 local QBAimbot = Initialization:NewTab("QB Aimbot")
 
@@ -44,6 +17,11 @@ getgenv().showArcTracer = false
 getgenv().hideDeco = false
 getgenv().customLead = 0
 getgenv().customTargetHeight = 0
+
+local EnabledPullVector = false
+local EnablePlayerESP = false
+local EnableFootballESP = false
+local EnablePlayerWithFootballESP = false
 
 
 local QBAimbotSection = QBAimbot:NewSection("QB Aimbot & Settings")
@@ -94,6 +72,8 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+
+--// Variables
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
 local Gui = game:GetObjects("rbxassetid://14769142268")[1]
@@ -145,6 +125,8 @@ local passTypeSwitch = {
 }
 
 local passType = "Dime"
+
+--// Functions
 
 local function InverseCosine(degrees)
     return math.cos(math.rad(degrees))
