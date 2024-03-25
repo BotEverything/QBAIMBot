@@ -382,9 +382,3 @@ task.spawn(function()
         end
     end)
 end)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if input.KeyCode == Enum.KeyCode.LeftControl then
-        Gui.Enabled = not Gui.Enabled
-    end
-end)
