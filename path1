@@ -1,6 +1,6 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Consistt/Ui/main/UnLeaked"))()
 local NotificationStuff = Library:InitNotifications()
-local LoadingViseHubV3 = NotificationStuff:Notify("Loading Vise Hub V3!")
+local LoadingViseHubV3 = NotificationStuff:Notify("Loading..")
 
 Library.rank = "developer"
 Library.title = "Quarterback | Beta"
@@ -91,7 +91,7 @@ local Beam = Instance.new("Beam")
 Beam.Parent = workspace.Terrain
 
 local Highlight = Instance.new("Highlight")
-Highlight.FillColor = Color3.fromRGB(255, 11, 202)
+Highlight.FillColor = Color3.fromRGB(37, 18, 255)
 Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
 
 local Attachment0, Attachment1 = Instance.new("Attachment"), Instance.new("Attachment")
@@ -101,7 +101,7 @@ Attachment1.Parent = workspace.Terrain
 Beam.Width0 = 0.5
 Beam.Width1 = 0.5
 Beam.Transparency = NumberSequence.new(0)
-Beam.Color = ColorSequence.new(Color3.fromRGB(255, 11, 202))
+Beam.Color = ColorSequence.new(Color3.fromRGB(0, 60, 255))
 Beam.Attachment0 = Attachment0
 Beam.Segments = 3000
 Beam.Attachment1 = Attachment1
@@ -113,7 +113,7 @@ local data = {
 }
 
 local passTypeLeads = {
-    ["Dime"] = 4,
+    ["Dime"] = 2,
     ["Jump"] = 6,
     ["Mag"] = 12,
 }
@@ -358,7 +358,7 @@ task.spawn(function()
 
             Part.Position = landing
             Part.Transparency = (getgenv().predictBallArc and 0) or 1
-            Part.Color = Color3.fromRGB(255, 11, 202)
+            Part.Color = Color3.fromRGB(100, 100, 100)
 
             Beam.CurveSize0 = c0
             Beam.CurveSize1 = c1
