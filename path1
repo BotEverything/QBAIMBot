@@ -1,0 +1,402 @@
+local Config = {
+    FootballMagnents = {
+        Enabled = false,
+        DistanceActivation = 0
+    },
+
+    FootballSizeExtender = {
+        Enabled = false,
+        SizeX = 0,
+        SizeY = 0,
+        SizeZ = 0
+    },
+
+    AutoCatch = {
+        Enabled = false,
+        ActivationDistance = 0
+    },
+
+    CharacterOptions = {
+        EnabledWalkSpeed = false,
+        EnabledJumpPower = false,
+        WalkSpeed = 20,
+        JumpPower = 50
+    }
+}
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Consistt/Ui/main/UnLeaked"))()
+Library.rank = "developer"
+
+local NotificationStuff = Library:InitNotifications()
+local LoadingViseHubV3 = NotificationStuff:Notify("Loading Vise Hub V3!")
+
+--// Set The Title of the UI!
+Library.title = "QB Stuff | Testing"
+Library:Introduction()
+task.wait()
+local Initialization = Library:Init()
+local QBAimbot = Initialization:NewTab("QB Aimbot")
+
+getgenv().predictBallArc = false
+getgenv().qbaimbotenabled = false
+getgenv().autoAngle = false
+getgenv().showArcTracer = false
+getgenv().hideDeco = false
+getgenv().customLead = 0
+getgenv().customTargetHeight = 0
+
+
+local QBAimbotSection = QBAimbot:NewSection("QB Aimbot & Settings")
+
+local QBAimbotToggle = QBAimbot:NewToggle("Enabled", false, function(Callback)
+    getgenv().qbaimbotenabled = Callback
+end)
+
+local BallArcTracerToggle = QBAimbot:NewToggle("Ball Arc Tracer", false, function(Callback)
+    if getgenv().qbaimbotenabled then
+        getgenv().showArcTracer = Callback
+    end
+end)
+
+local PredictBallArcTracerToggle = QBAimbot:NewToggle("Predict Ball Arc Tracer", false, function(Callback)
+    if getgenv().qbaimbotenabled then
+        getgenv().predictBallArc = Callback
+    end
+end)
+
+local AutoAngleToggle = QBAimbot:NewToggle("Auto Angle", false, function(Callback)
+    if getgenv().qbaimbotenabled then
+        getgenv().autoAngle = Callback
+    end
+end)
+
+local CustomLeadDistance = QBAimbot:NewSlider("Custom Lead Distance", "", true,  "/", {min = 0, max = 10, default = 0}, function(Callback)
+    if getgenv().qbaimbotenabled then
+        getgenv().customLead = Callback
+    end
+end)
+
+local CustomTargetHeight = QBAimbot:NewSlider("Custom Target Height", "", true, "/", {min = 0, max = 10, default = 0}, function(Callback)
+    if getgenv().qbaimbotenabled then
+        getgenv().customTargetHeight = Callback
+    end
+end)
+
+local HideDecoy = QBAimbot:NewToggle("Hide Decoy", false, function(Callback)
+    if getgenv().qbaimbotenabled then
+        getgenv().hideDeco = Callback
+    end
+end)
+
+--> QB Aimbot Source
+--// Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Player = Players.LocalPlayer
+local Mouse = Player:GetMouse()
+local Gui = game:GetObjects("rbxassetid://14769142268")[1]
+
+local locked = false
+local target = nil
+
+local Part = Instance.new("Part")
+Part.Parent = workspace
+Part.Anchored = true
+Part.Size = Vector3.new(3, 1, 3)
+Part.CanCollide = false
+
+local Beam = Instance.new("Beam")
+Beam.Parent = workspace.Terrain
+
+local Highlight = Instance.new("Highlight")
+Highlight.FillColor = Color3.fromRGB(255, 11, 202)
+Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+
+local Attachment0, Attachment1 = Instance.new("Attachment"), Instance.new("Attachment")
+Attachment0.Parent = workspace.Terrain
+Attachment1.Parent = workspace.Terrain
+
+Beam.Width0 = 0.5
+Beam.Width1 = 0.5
+Beam.Transparency = NumberSequence.new(0)
+Beam.Color = ColorSequence.new(Color3.fromRGB(255, 11, 202))
+Beam.Attachment0 = Attachment0
+Beam.Segments = 3000
+Beam.Attachment1 = Attachment1
+
+local data = {
+    Angle = 40,
+    Power = 0,
+    Direction = Vector3.new(0, 0, 0)
+}
+
+local passTypeLeads = {
+    ["Dime"] = 2,
+    ["Jump"] = 6,
+    ["Mag"] = 12,
+}
+
+local passTypeSwitch = {
+    ["Dime"] = "Jump",
+    ["Jump"] = "Mag",
+    ["Mag"] = "Dime"
+}
+
+local passType = "Dime"
+
+local function InverseCosine(degrees)
+    return math.cos(math.rad(degrees))
+end
+
+local function CalculateTimeToPeak(from, to, height)
+    local g = Vector3.new(0, -28, 0)
+    local conversionFactor = 4
+    local xMeters = height * conversionFactor
+
+    local a = 0.5 * g.Y
+    local b = to.Y - from.Y
+    local c = xMeters - from.Y
+
+    local discriminant = b * b - 4 * a * c
+    if discriminant < 0 then
+        return nil
+    end
+
+    local t1 = (-b + math.sqrt(discriminant)) / (2 * a)
+    local t2 = (-b - math.sqrt(discriminant)) / (2 * a)
+
+    local t = math.max(t1, t2)
+    return t
+end
+
+local function CalculateLanding(power, direction)
+    local origin = Player.Character.Head.Position + direction * 5
+    local velocity = power * direction
+    local t = (velocity.Y / 28) * 2
+    return origin + Vector3.new(velocity.X * t, 0, velocity.Z * t), t
+end
+
+local function FindPossibleCatchers(power, direction)
+    local velocity = power * direction
+    local landing, airtime = CalculateLanding(power, direction)
+    local catchers = {}
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (player.Character.HumanoidRootPart.Position - landing).Magnitude
+
+            if distance < (20 * airtime) + 10 then
+                catchers[#catchers + 1] = player
+            end
+        end
+    end
+
+    return catchers
+end
+
+local function CalculatePeakHeight(from, to, angle)
+    local unitY = 1 - InverseCosine(angle)
+    local distance = (from - to).Magnitude
+
+    return unitY * distance
+end
+
+local function CalculateVelocity(from, to, time)
+    local g = Vector3.new(0, -28, 0)
+    local v0 = (to - from - 0.5 * g * time * time) / time
+    local dir = ((from + v0) - from).Unit
+    local power = v0.Y / dir.Y
+
+    return v0, dir, math.clamp(math.round(power), 0, 95)
+end
+
+local function FindTarget()
+    local nearestPart = nil
+    local nearestDistance = math.huge
+
+    local searchParts = { workspace }
+    if workspace:FindFirstChild("npcwr") then
+        table.insert(searchParts, workspace.npcwr.a)
+        table.insert(searchParts, workspace.npcwr.b)
+    end
+
+    for _, part in pairs(searchParts) do
+        for _, child in pairs(part:GetChildren()) do
+            if child:FindFirstChildWhichIsA("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
+                local player = Players:GetPlayerFromCharacter(child)
+
+                if player == Player then
+                    continue
+                end
+
+                if not player and game.PlaceId ~= 8206123457 then
+                    continue
+                end
+
+                if not Player.Neutral then
+                    if player.Team ~= Player.Team then
+                        continue
+                    end
+                end
+
+                local distance = (child.HumanoidRootPart.Position - Mouse.Hit.Position).Magnitude
+
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestPart = child
+                end
+            end
+        end
+    end
+
+    return nearestPart
+end
+
+local function GetMoveDirection(target)
+    if Players:GetPlayerFromCharacter(target) then
+        return target.Humanoid.MoveDirection
+    else
+        return (target.Humanoid.WalkToPoint - target.Head.Position).Unit
+    end
+end
+
+local __namecall;
+__namecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = { ... }
+
+    if args[1] == "Clicked" and getgenv().qbaimbotenabled then
+        local newArgs = {"Clicked", Player.Character.Head.Position, Player.Character.Head.Position + data.Direction * 10000, (game.PlaceId == 8206123457 and data.Power) or 61, data.Power }
+        return __namecall(self, unpack(newArgs))
+    end
+
+    return __namecall(self, ...)
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and Player.PlayerGui:FindFirstChild("BallGui") then
+        if input.KeyCode == Enum.KeyCode.R then
+            while UserInputService:IsKeyDown(Enum.KeyCode.R) do
+                data.Angle = data.Angle + 5
+                data.Angle = math.clamp(data.Angle, 5, 90)
+                wait(1/6)
+            end
+        elseif input.KeyCode == Enum.KeyCode.F then
+            while UserInputService:IsKeyDown(Enum.KeyCode.F) do
+                data.Angle = data.Angle - 5
+                data.Angle = math.clamp(data.Angle, 5, 90)
+                wait(1/6)
+            end
+        elseif input.KeyCode == Enum.KeyCode.Q then
+            locked = not locked
+        elseif input.KeyCode == Enum.KeyCode.Z then
+            passType = passTypeSwitch[passType]
+        end
+    end
+end)
+
+local function BeamProjectile(g, v0, x0, t1)
+    local c = 0.5 * 0.5 * 0.5
+    local p3 = 0.5 * g * t1 * t1 + v0 * t1 + x0
+    local p2 = p3 - (g * t1 * t1 + v0 * t1) / 3
+    local p1 = (c * g * t1 * t1 + 0.5 * v0 * t1 + x0 - c * (x0 + p3)) / (3 * c) - p2
+
+    local curve0 = (p1 - x0).Magnitude
+    local curve1 = (p2 - p3).Magnitude
+
+    local b = (x0 - p3).Unit
+    local r1 = (p1 - x0).Unit
+    local u1 = r1:Cross(b).Unit
+    local r2 = (p2 - p3).Unit
+    local u2 = r2:Cross(b).Unit
+    b = u1:Cross(r1).Unit
+
+    local cf1 = CFrame.new(
+        x0.x, x0.y, x0.z,
+        r1.x, u1.x, b.x,
+        r1.y, u1.y, b.y,
+        r1.z, u1.z, b.z
+    )
+
+    local cf2 = CFrame.new(
+        p3.x, p3.y, p3.z,
+        r2.x, u2.x, b.x,
+        r2.y, u2.y, b.y,
+        r2.z, u2.z, b.z
+    )
+
+    return curve0, -curve1, cf1, cf2
+end
+
+Gui.Enabled = false
+
+if syn and syn.protect_gui then
+    syn.protect_gui(Gui)
+end
+
+Gui.Parent = (gethui and gethui()) or game:GetService("CoreGui"):FindFirstChild("RobloxGui")
+
+task.spawn(function()
+    RunService.Heartbeat:Connect(function()
+        if not locked then
+            target = FindTarget()
+        end
+	
+        if target and getgenv().qbaimbotenabled and Player.PlayerGui:FindFirstChild("BallGui") and Player.Character:FindFirstChild("Head") and target:FindFirstChild("HumanoidRootPart") then
+            Gui.Enabled = not getgenv().hideDeco
+            Beam.Enabled = getgenv().showArcTracer
+
+            local moveDirection = GetMoveDirection(target)
+            local angleAddition = (moveDirection.Magnitude > 0 and 5) or 0
+            local leadDistance = passTypeLeads[passType] + (getgenv().customLead or 0)
+
+            local estimatedPosition = target.HumanoidRootPart.Position + target.HumanoidRootPart.Velocity + moveDirection * leadDistance + Vector3.new(0, getgenv().customTargetHeight or 0, 0)
+
+            local peakHeight = CalculatePeakHeight(Player.Character.Head.Position, estimatedPosition, data.Angle + angleAddition)
+
+            local t = CalculateTimeToPeak(Player.Character.Head.Position, estimatedPosition, peakHeight) or 0.5
+
+            local vel, direction, power = CalculateVelocity(Player.Character.Head.Position, estimatedPosition, t)
+
+            local catchers = FindPossibleCatchers(power, direction)
+            local landing, airtime = CalculateLanding(power, direction)
+            local c0, c1, cf1, cf2 = BeamProjectile(Vector3.new(0, -28, 0), power * direction, Player.Character.Head.Position + (direction * 5), 7)
+            local isInterceptable = false
+
+            for _, catcher in pairs(catchers) do
+            local team = catcher.Team
+
+            if team ~= Player.Team then
+                isInterceptable = true
+                break
+            end
+            end
+
+            Part.Position = landing
+            Part.Transparency = (getgenv().predictBallArc and 0) or 1
+            Part.Color = Color3.fromRGB(255, 11, 202)
+
+            Beam.CurveSize0 = c0
+            Beam.CurveSize1 = c1
+
+            Attachment0.CFrame = Attachment0.Parent.CFrame:Inverse() * cf1
+            Attachment1.CFrame = Attachment1.Parent.CFrame:Inverse() * cf2
+
+            data.Direction = direction
+            data.Power = power
+
+            Highlight.Parent = target
+            Highlight.Enabled = not getgenv().hideDeco
+
+            Gui.Frame.pwr.value.Text = power
+            Gui.Frame.player.value.Text = target.Name
+            Gui.Frame.angle.value.Text = data.Angle
+            Gui.Frame.mode.value.Text = passType
+        else
+            Gui.Enabled = false
+            Highlight.Parent = nil
+        end
+    end)
+end)
